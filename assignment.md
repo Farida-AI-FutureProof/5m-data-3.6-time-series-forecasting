@@ -15,12 +15,78 @@ Your task is to analyze the global temperature time series and build forecasting
    - Check for trends, seasonality, and cycles
    - Create seasonal plots and subseries plots
    - Analyze autocorrelation using ACF plots
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from statsmodels.tsa.seasonal import seasonal_decompose
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from sktime.forecasting.naive import NaiveForecaster
+from sktime.forecasting.arima import AutoARIMA
+from sktime.forecasting.ets import AutoETS
+from sktime.forecasting.model_selection import temporal_train_test_split
+from sktime.performance_metrics.forecasting import mean_absolute_percentage_error, mean_absolute_error, mean_squared_error
+from sktime.utils.plotting import plot_series
+
+# --- STARTER CODE ---
+url = "https://data.giss.nasa.gov/gistemp/tabledata_v4/GLB.Ts+dSST.csv"
+
+def prepare_nasa_data(url):
+    df = pd.read_csv(url, skiprows=1)
+    df = df.iloc[:, :13] # Keep Year + 12 Months
+    df.columns = ['Year', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    
+    # Melt to long format
+    df_long = df.melt(id_vars=['Year'], var_name='Month', value_name='Temperature_Anomaly')
+    
+    # Filter valid data
+    df_long = df_long[df_long['Temperature_Anomaly'] != '***']
+    df_long['Temperature_Anomaly'] = df_long['Temperature_Anomaly'].astype(float)
+    
+    # Create Date index
+    df_long['Date'] = pd.to_datetime(df_long['Year'].astype(str) + '-' + df_long['Month'], format='%Y-%b')
+    df_long = df_long.sort_values('Date')
+    
+    # Set index and frequency (Vital for sktime/statsmodels)
+    ts_data = df_long.set_index('Date')['Temperature_Anomaly']
+    ts_data = ts_data.asfreq('MS') # Set frequency to Month Start
+    
+    return ts_data
+
+ts_data = prepare_nasa_data(url)
+print(f"Data range: {ts_data.index.min()} to {ts_data.index.max()}")
 
 2. **Time Series Decomposition**
 
    - Decompose the time series into trend, seasonal, and residual components
    - Compare additive and multiplicative decomposition methods
    - Interpret your findings
+# 1. Standard Time Series Plot
+plt.figure(figsize=(12, 6))
+plt.plot(ts_data, label='Global Temp Anomaly')
+plt.title('Global Temperature Anomalies (1880 - Present)')
+plt.ylabel('Deviation from Mean (°C)')
+plt.xlabel('Year')
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.show()
+
+# 2. Seasonal Plot (Checking for monthly patterns)
+# We group by month to see if certain months are consistently hotter/colder relative to the trend
+plt.figure(figsize=(10, 5))
+sns.boxplot(x=ts_data.index.month, y=ts_data.values)
+plt.title('Seasonal Plot: Temperature Anomaly by Month')
+plt.xlabel('Month')
+plt.ylabel('Anomaly')
+plt.show()
+
+# 3. Autocorrelation Plot (ACF)
+# This checks how correlated the data is with its past values (lags).
+
+plt.figure(figsize=(10, 5))
+plot_acf(ts_data.dropna(), lags=48) # Looking at 4 years of lags
+plt.title('Autocorrelation Function (ACF)')
+plt.show()
 
 3. **Forecasting**
 
