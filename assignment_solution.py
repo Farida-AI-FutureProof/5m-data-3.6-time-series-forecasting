@@ -170,6 +170,8 @@ future_horizon = np.arange(1, 61)
 future_forecast = best_model.predict(fh=future_horizon)
 
 # Visualize Future
+
+#Used Gemini to help with this"
 plt.figure(figsize=(12, 6))
 plot_series(ts_data[-180:], future_forecast, labels=["Historical Data (Last 15 Years)", "5-Year Forecast"])
 plt.title("Global Temperature Forecast: Next 5 Years")
